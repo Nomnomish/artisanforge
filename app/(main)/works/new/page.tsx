@@ -1,13 +1,29 @@
 /**
+ * app/(main)/works/new/page.tsx
  * Work creation wizard — /works/new
- * Placeholder for Phase 2. Will become the multi-step upload wizard:
- * category → file upload → title/description/tags → publish.
+ *
+ * Server component wrapper. Auth check happens inside the wizard via
+ * the Supabase client — unauthenticated users will see an error on
+ * Step 1 → Step 2 if somehow they reach this page without being logged in.
+ * Middleware already redirects unauthenticated users away from /works/new.
  */
+
+import WorkCreationWizard from '@/components/work/WorkCreationWizard'
+
+export const metadata = {
+  title: 'Upload a Work — ArtisanForge',
+}
+
 export default function NewWorkPage() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-      <h2 className="text-2xl font-semibold text-gray-900 mb-2">Upload a Work</h2>
-      <p className="text-gray-500 text-sm">Coming in Phase 2 — file upload and 3D preview.</p>
-    </div>
+    <main className="mx-auto max-w-2xl px-4 py-12">
+      <div className="mb-8 text-center">
+        <h1 className="text-2xl font-bold text-gray-900">Upload a Work</h1>
+        <p className="mt-1 text-sm text-gray-500">
+          Share your art with the ArtisanForge community.
+        </p>
+      </div>
+      <WorkCreationWizard />
+    </main>
   )
 }

@@ -8,6 +8,9 @@
  * - File size limits are enforced both client-side (upload component) and
  *   server-side (upload API route). Both must reference these constants.
  * - CATEGORIES is the single source of truth for all category IDs and labels.
+ * - ACCEPTED_PREVIEW_TYPES and ACCEPTED_DOWNLOAD_TYPES replaced ACCEPTED_3D_TYPES
+ *   in Phase 2. Preview files must be GLB or OBJ (browser-renderable). Download
+ *   files can be any supported format including STL. STL→GLB conversion deferred to Gen2.
  */
 
 // -----------------------------------------------------------------------------
@@ -28,18 +31,36 @@ export const MAX_IMAGE_FILE_SIZE_BYTES = 20 * 1024 * 1024  // 20 MB
 
 // -----------------------------------------------------------------------------
 // ACCEPTED FILE TYPES
-// Used for client-side validation in the dropzone and server-side MIME checking.
+// ACCEPTED_PREVIEW_TYPES: files that render in-browser via @google/model-viewer.
+//   GLB and OBJ only — STL is not browser-renderable. STL→GLB conversion is Gen2.
+// ACCEPTED_DOWNLOAD_TYPES: files a buyer receives after purchase. Any format
+//   the creator wants to distribute, including STL.
+// ACCEPTED_IMAGE_TYPES: used for both work images and thumbnails.
+// All three are enforced client-side (dropzone) and server-side (upload route).
 // -----------------------------------------------------------------------------
-export const ACCEPTED_3D_TYPES = [
-  'model/stl',
-  'model/obj',
-  'model/gltf-binary',
+export const ACCEPTED_PREVIEW_TYPES = [
+  'model/gltf-binary', // .glb
+  'model/obj',         // .obj
+] as const
+
+export const ACCEPTED_DOWNLOAD_TYPES = [
+  'model/gltf-binary', // .glb
+  'model/obj',         // .obj
+  'model/stl',         // .stl
+  'application/octet-stream', // fallback MIME for .stl files (common in browsers)
 ] as const
 
 export const ACCEPTED_IMAGE_TYPES = [
   'image/png',
   'image/jpeg',
   'image/webp',
+] as const
+
+// All file types accepted anywhere on the platform (union — for generic checks)
+export const ALL_ACCEPTED_TYPES = [
+  ...ACCEPTED_PREVIEW_TYPES,
+  ...ACCEPTED_DOWNLOAD_TYPES,
+  ...ACCEPTED_IMAGE_TYPES,
 ] as const
 
 // -----------------------------------------------------------------------------
