@@ -1,6 +1,8 @@
+import { Suspense } from 'react'
 import Link from 'next/link'
 import { type User } from '@supabase/supabase-js'
 import LogoutButton from './LogoutButton'
+import NavSearch from './NavSearch'
 
 interface NavbarProps {
   user: User | null
@@ -11,13 +13,14 @@ interface NavbarProps {
  * Navbar — server component.
  * Receives user and profile from the parent layout (already fetched server-side).
  * Logout action is handled by the LogoutButton client component.
+ * Search is handled by NavSearch (client component) wrapped in Suspense.
+ * useSearchParams() inside NavSearch requires the Suspense boundary.
  */
 export default function Navbar({ user, profile }: NavbarProps) {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-gray-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between gap-4">
-
           {/* Logo */}
           <Link
             href="/"
@@ -26,18 +29,14 @@ export default function Navbar({ user, profile }: NavbarProps) {
             ArtisanForge
           </Link>
 
-          {/* Search placeholder — wired up in Phase 3 */}
-          <div className="flex-1 max-w-md">
-            <Link
-              href="/search"
-              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-500 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              Search works, creators…
-            </Link>
-          </div>
+          {/*
+            Search bar — NavSearch is a Client Component (uses useRouter +
+            useSearchParams). Suspense fallback matches the static placeholder
+            appearance so there is no layout shift while the client hydrates.
+          */}
+          <Suspense fallback={<SearchFallback />}>
+            <NavSearch />
+          </Suspense>
 
           {/* Right side — auth state */}
           <div className="flex items-center gap-3 flex-shrink-0">
@@ -53,7 +52,6 @@ export default function Navbar({ user, profile }: NavbarProps) {
                   </svg>
                   Upload
                 </Link>
-
                 {/* Profile link */}
                 <Link
                   href={`/${profile.username}`}
@@ -72,7 +70,6 @@ export default function Navbar({ user, profile }: NavbarProps) {
                   )}
                   <span className="hidden sm:block">{profile.username}</span>
                 </Link>
-
                 <LogoutButton />
               </>
             ) : (
@@ -95,5 +92,35 @@ export default function Navbar({ user, profile }: NavbarProps) {
         </div>
       </div>
     </header>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Suspense fallback — matches NavSearch's static appearance
+// ---------------------------------------------------------------------------
+
+function SearchFallback() {
+  return (
+    <div className="flex-1 max-w-md">
+      <div className="relative flex items-center">
+        <svg
+          className="pointer-events-none absolute left-3 w-4 h-4 text-gray-400"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          aria-hidden
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          />
+        </svg>
+        <div className="w-full pl-9 pr-8 py-2 text-sm bg-gray-100 rounded-lg text-gray-500">
+          Search works, creators…
+        </div>
+      </div>
+    </div>
   )
 }

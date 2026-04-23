@@ -11,6 +11,8 @@
  *           3D Models: preview file (GLB/OBJ, required) + download file (any, optional)
  *           All others: primary image (required) + download file (any, optional)
  * Step 3 — Details: title (required), description, tags via react-hook-form + zod.
+ *           Suggested tags are shown as clickable pills, fetched from published
+ *           works in the same category on mount (client-side flatten/dedup).
  *           Updates the works row in Supabase on Next.
  * Step 4 — Review & Publish: summary + Save as Draft or Publish buttons.
  *
@@ -33,6 +35,9 @@ import FileUpload, { WorkFile } from '@/components/work/FileUpload'
 const DRAFT_KEY = 'artisanforge_work_draft'
 const STEPS = ['Category', 'Files', 'Details', 'Publish'] as const
 type Step = 0 | 1 | 2 | 3
+
+// Max suggested tags to display below the tags input
+const MAX_SUGGESTIONS = 15
 
 // ── Draft shape ───────────────────────────────────────────────────────────────
 
@@ -148,6 +153,11 @@ export default function WorkCreationWizard() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Suggested tags for Step 3 — populated once when the user reaches Step 2→3.
+  // Fetched from the 50 most recent published works in the same category,
+  // flattened and deduplicated client-side. No DB migration needed.
+  const [suggestedTags, setSuggestedTags] = useState<string[]>([])
+
   // Details form
   const {
     register,
@@ -170,6 +180,46 @@ export default function WorkCreationWizard() {
       setResumePrompt(draft)
     }
   }, [])
+
+  // ── Fetch suggested tags when category is known ────────────────────────────
+  // Runs once when workId is set (Step 1 → 2) and category is confirmed.
+  // Fetches tags from the 50 most recently published works in the category,
+  // flattens the text[] arrays, deduplicates, and sorts alphabetically.
+  useEffect(() => {
+    if (!category || !workId) return
+
+    async function fetchSuggestedTags() {
+      const { data, error: fetchError } = await supabase
+        .from('works')
+        .select('tags')
+        .eq('category', category!)
+        .eq('is_published', true)
+        .order('created_at', { ascending: false })
+        .limit(50)
+
+      if (fetchError || !data) return
+
+      // Flatten all tags arrays, lowercase, deduplicate, sort, cap at max
+      const all = data.flatMap((row) => row.tags ?? [])
+      const unique = [...new Set(all.map((t) => t.toLowerCase()))].sort()
+      setSuggestedTags(unique.slice(0, MAX_SUGGESTIONS))
+    }
+
+    fetchSuggestedTags()
+  }, [category, workId, supabase])
+
+  // ── Append a suggested tag to the current tags input value ────────────────
+  // Skips tags that are already present. Appends with comma separator.
+  const handleTagSuggestion = useCallback(
+    (tag: string) => {
+      const current = parseTags(tagsValue)
+      if (current.includes(tag)) return // already in the list — no-op
+
+      const updated = current.length > 0 ? `${tagsValue}, ${tag}` : tag
+      setValue('tags', updated, { shouldValidate: false })
+    },
+    [tagsValue, setValue],
+  )
 
   const resumeDraft = useCallback((draft: DraftState) => {
     setWorkId(draft.workId)
@@ -456,6 +506,9 @@ export default function WorkCreationWizard() {
 
   // ── Step 3: Details ────────────────────────────────────────────────────────
   if (step === 2) {
+    // Tags already entered by the user (parsed for dedup check in handleTagSuggestion)
+    const currentTags = parseTags(tagsValue)
+
     return (
       <div className="mx-auto max-w-lg">
         <StepIndicator current={2} />
@@ -516,6 +569,34 @@ export default function WorkCreationWizard() {
                 Separate tags with commas. {tagsValue ? tagsValue.split(',').filter(Boolean).length : 0} tag
                 {tagsValue?.split(',').filter(Boolean).length === 1 ? '' : 's'} added.
               </p>
+
+              {/* Suggested tags — only shown when suggestions exist */}
+              {suggestedTags.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-xs text-gray-400 mb-2">Popular in this category:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {suggestedTags.map((tag) => {
+                      const alreadyAdded = currentTags.includes(tag)
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => handleTagSuggestion(tag)}
+                          disabled={alreadyAdded}
+                          className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                            alreadyAdded
+                              ? 'bg-indigo-100 text-indigo-400 cursor-default'
+                              : 'bg-gray-100 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600'
+                          }`}
+                        >
+                          #{tag}
+                          {alreadyAdded && <span className="ml-1">✓</span>}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
             {error && <p className="text-xs text-red-600">{error}</p>}

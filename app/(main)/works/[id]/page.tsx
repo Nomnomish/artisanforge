@@ -14,6 +14,10 @@
  * Deviation: users join uses explicit FK name 'users!works_user_id_fkey'
  * because PostgREST found two paths between works and users (via works_user_id_fkey
  * and via likes). Must be explicit to avoid PGRST201 ambiguity error.
+ *
+ * Phase 3: Like status checked server-side for the current user (single
+ * targeted query). initialIsLiked passed to LikeButton so the heart
+ * renders filled immediately on page load for works the user has liked.
  */
 
 import { notFound } from 'next/navigation'
@@ -21,6 +25,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import ModelViewer from '@/components/work/ModelViewer'
+import LikeButton from '@/components/work/LikeButton'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -120,6 +125,20 @@ export default async function WorkDetailPage({ params }: PageProps) {
   if (!work.is_published && work.user_id !== user?.id) notFound()
 
   const isOwner = user?.id === work.user_id
+
+  // ── Check if the current user has liked this work ──────────────────────────
+  // Single targeted query — only runs when a user is authenticated.
+  // Guests always see the heart unfilled (initialIsLiked = false).
+  let initialIsLiked = false
+  if (user) {
+    const { data: likeRow } = await supabase
+      .from('likes')
+      .select('work_id')
+      .eq('work_id', id)
+      .eq('user_id', user.id)
+      .maybeSingle()
+    initialIsLiked = likeRow !== null
+  }
 
   // ── Separate files by purpose ──────────────────────────────────────────────
   type WorkFileRow = {
@@ -229,10 +248,17 @@ export default async function WorkDetailPage({ params }: PageProps) {
             </Link>
           )}
 
-          {/* Stats */}
-          <div className="flex items-center gap-4 text-sm text-gray-500">
-            <span>♥ {work.like_count} likes</span>
-            <span>💬 {work.comment_count} comments</span>
+          {/* Stats — like button (interactive) + comment count (static until Phase 6) */}
+          <div className="flex items-center gap-3">
+            <LikeButton
+              workId={work.id}
+              initialCount={work.like_count}
+              initialIsLiked={initialIsLiked}
+              variant="full"
+            />
+            <span className="text-sm text-gray-500">
+              💬 {work.comment_count} {work.comment_count === 1 ? 'comment' : 'comments'}
+            </span>
           </div>
 
           {/* Description */}
