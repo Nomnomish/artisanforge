@@ -16,11 +16,10 @@
 // -----------------------------------------------------------------------------
 // STRIPE COMMISSION
 // The platform's cut of every sale, taken via Stripe's application_fee_amount.
-// TODO: Decide this value before Phase 4 begins.
-// Typical marketplace range: 5–15%. Current placeholder: 10%.
-// Example: 0.10 = 10% — platform keeps $1.00 on a $10.00 sale.
+// Confirmed at Phase 4 start: 6%. Revisit before launch based on beta creator feedback.
+// Example: 0.06 = 6% — platform keeps $0.60 on a $10.00 sale.
 // -----------------------------------------------------------------------------
-export const PLATFORM_COMMISSION_RATE = 0.10
+export const PLATFORM_COMMISSION_RATE = 0.06
 
 // -----------------------------------------------------------------------------
 // FILE UPLOAD LIMITS
